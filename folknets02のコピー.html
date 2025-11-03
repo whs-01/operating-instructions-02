@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>FolkAdmin - 管理システム</title>
+<style>
+body {
+  font-family: 'Hiragino Sans', sans-serif;
+  margin: 20px;
+  background: linear-gradient(120deg, #f6d365, #fda085);
+}
+h1, h2 { color: #2c3e50; }
+button {
+  font-size: 18px;
+  padding: 12px 20px;
+  margin: 5px;
+  background: linear-gradient(135deg, #6dd5fa, #2980b9);
+  color: white; border: none; border-radius: 8px;
+  cursor: pointer; transition: 0.12s; min-width: 220px;
+}
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button:hover:enabled { transform: scale(1.03); background: linear-gradient(135deg, #89f7fe, #66a6ff); }
+input, select, textarea {
+  width: 300px; padding: 6px; margin-top: 6px;
+  border-radius: 4px; border: 1px solid #ccc;
+}
+section {
+  display: none; margin-top: 20px; background: white;
+  padding: 20px; border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.active { display: block; }
+#menuTable { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+td { padding: 10px; text-align: center; }
+table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+th { background: #f0f0f0; }
+.todo-warning { color: red; font-weight: bold; }
+.name-display { margin-left: 10px; color: #333; font-weight: bold; }
+.back-btn {
+  margin-top: 15px; background: linear-gradient(135deg, #ffd86f, #fc6262);
+  color: #333; font-weight: bold;
+}
+.small { width: 180px; }
+</style>
+</head>
+<body>
+
+<h1>FolkAdmin - 管理システム</h1>
+
+<!-- ログイン -->
+<section id="login" class="active">
+  <h2>ログイン</h2>
+  <label>パスワード：<input type="password" id="password"></label>
+  <button onclick="checkLogin()">ログイン</button>
+  <p id="loginMessage" style="color:red;"></p>
+</section>
+
+<!-- 部員番号入力 -->
+<section id="userAccess">
+  <h2>部員番号を入力してください</h2>
+  <label>部員番号：<input type="text" id="accessId" oninput="checkMemberId()"></label>
+  <span id="accessName" class="name-display"></span>
+</section>
+
+<!-- メニュー -->
+<section id="menuSection">
+  <h2>メニュー</h2>
+  <table id="menuTable"></table>
+</section>
+
+<!-- ホーム -->
+<section id="home">
+  <h2>ホーム（ToDo）</h2>
+  <div id="todo"></div>
+  <button class="back-btn" onclick="goMenu()">📋 メニューへ戻る</button>
+</section>
+
+<!-- 物品管理 -->
+<section id="items">
+  <h2>物品管理（登録）</h2>
+  <label>物品名：<input type="text" id="itemName"></label><br>
+  <label>状態：
+    <select id="itemStatus">
+      <option>良好</option><option>一部不良点あり</option><option>使用不可</option>
+      <option>弦なし</option><option>付属品行方不明</option><option>修理中</option>
+    </select>
+  </label><br>
+  <label>備考：<textarea id="itemNote" rows="2"></textarea></label><br>
+  <button onclick="addItem()">登録</button>
+  <h3>物品一覧</h3>
+  <table id="itemTable">
+    <thead><tr><th>番号</th><th>名前</th><th>状態</th><th>備考</th><th>登録者</th></tr></thead>
+    <tbody id="itemTableBody"></tbody>
+  </table>
+  <button class="back-btn" onclick="goMenu()">📋 メニューへ戻る</button>
+</section>
+
+<!-- 物品編集（追加機能） -->
+<section id="itemEdit">
+  <h2>物品情報変更</h2>
+  <label>変更する物品：<select id="itemSelect" onchange="loadItemForEdit()"></select></label><br><br>
+  <label>物品名：<input type="text" id="editItemName"></label><br>
+  <label>状態：
+    <select id="editItemStatus">
+      <option>良好</option><option>一部不良点あり</option><option>使用不可</option>
+      <option>弦なし</option><option>付属品行方不明</option><option>修理中</option>
+    </select>
+  </label><br>
+  <label>備考：<textarea id="editItemNote" rows="2"></textarea></label><br>
+  <button onclick="updateItem()">💾 保存</button>
+  <button onclick="deleteItem()" style="background:linear-gradient(135deg,#ff9a9e,#f857a6)">🗑 削除</button>
+  <h3>一覧（編集用）</h3>
+  <table id="itemEditTable">
+    <thead><tr><th>ID</th><th>名前</th><th>状態</th><th>備考</th></tr></thead>
+    <tbody id="itemEditTableBody"></tbody>
+  </table>
+  <button class="back-btn" onclick="goMenu()">📋 メニューへ戻る</button>
+</section>
+
+<!-- ライブ関連: 新ライブ登録 -->
+<section id="futureLiveAdd">
+  <h2>新ライブ登録</h2>
+  <label>ライブ名：<input type="text" id="liveName"></label><br>
+  <label>日付：<input type="date" id="liveDate"></label><br>
+  <label>会場：<input type="text" id="livePlace"></label><br>
+  <label>持ち時間（曲数）：<input type="number" id="liveSongsLimit" min="1" class="small"></label><br>
+  <button onclick="addFutureLive()">登録</button>
+  <button class="back-btn" onclick="goMenu()">📋 メニューへ戻る</button>
+</section>
+
+<!-- ライブ削除 -->
+<section id="futureLiveRemove">
+  <h2>新ライブ登録解除</h2>
+  <label>削除するライブ：<select id="futureLiveSelect"></select></label><br>
+  <button onclick="removeFutureLive()">削除</button>
+  <button class="back-btn" onclick="goMenu()">📋 メニューへ戻る</button>
+</section>
+
+<!-- 出演予定登録 -->
+<section id="confirmedLiveAdd">
+  <h2>ライブ出演予定登録</h2>
+  <label>ライブ選択：<select id="futureLiveSelectForConfirm"></select></label><br>
+  <button onclick="confirmLive()">登録</button>
+  <button class="back-btn" onclick="goMenu()">📋 メニューへ戻る</button>
+</section>
+
+<!-- 出演予定解除 -->
+<section id="confirmedLiveRemove">
+  <h2>ライブ出演予定解除</h2>
+  <label>削除するライブ：<select id="confirmedLiveSelect"></select></label><br>
+  <button onclick="removeConfirmedLive()">削除</button>
+  <button class="back-btn" onclick="goMenu()">📋 メニューへ戻る</button>
+</section>
+
+<!-- バンド登録 -->
+<section id="bandAdd">
+  <h2>ライブバンド登録</h2>
+  <label>ライブ選択：<select id="bandLiveSelect"></select></label><br>
+  <label>曲名：<input type="text" id="bandSong"></label><br>
+  <label>メンバー（カンマ区切り）：<input type="text" id="bandMembers"></label><br>
+  <label>担当楽器（カンマ区切り）：<input type="text" id="bandInstruments"></label><br>
+  <label>曲時間：<input type="text" id="bandDuration" class="small"></label><br>
+  <label>備考：<input type="text" id="bandNote"></label><br>
+  <button onclick="addBand()">登録</button>
+  <button class="back-btn" onclick="goMenu()">📋 メニューへ戻る</button>
+</section>
+
+<!-- バンド削除 -->
+<section id="bandRemove">
+  <h2>ライブバンド登録解除</h2>
+  <label>削除するバンド：<select id="bandSelect"></select></label><br>
+  <button onclick="removeBand()">削除</button>
+  <button class="back-btn" onclick="goMenu()">📋 メニューへ戻る</button>
+</section>
+
+<!-- ライブ詳細表示 -->
+<section id="liveDetails">
+  <h2>ライブ別出演曲・メンバー一覧</h2>
+  <label>ライブ選択：<select id="liveDetailSelect" onchange="showLiveDetails()"></select></label>
+  <table id="liveDetailTable">
+    <thead><tr><th>曲名</th><th>メンバー</th><th>担当楽器</th><th>曲時間</th><th>備考</th></tr></thead>
+    <tbody id="liveDetailTableBody"></tbody>
+  </table>
+  <button class="back-btn" onclick="goMenu()">📋 メニューへ戻る</button>
+</section>
+
+<!-- 部員管理 -->
+<section id="userRegister">
+  <h2>部員番号登録（部長専用）</h2>
+  <label>名前：<input type="text" id="userName"></label>
+  <button onclick="registerUser()">登録</button>
+  <ul id="userList"></ul>
+  <button class="back-btn" onclick="goMenu()">📋 メニューへ戻る</button>
+</section>
+
+<section id="userListView">
+  <h2>部員番号一覧</h2>
+  <table id="userTable"><thead><tr><th>名前</th><th>番号</th></tr></thead><tbody id="userTableBody"></tbody></table>
+  <button class="back-btn" onclick="goMenu()">📋 メニューへ戻る</button>
+</section>
+
+<!-- 電子ジャーナル -->
+<section id="journal">
+  <h2>電子ジャーナルビュアー</h2>
+  <table id="journalTable"><thead><tr><th>日時</th><th>番号</th><th>名前</th><th>操作</th><th>対象</th></tr></thead><tbody id="journalTableBody"></tbody></table>
+  <button class="back-btn" onclick="goMenu()">📋 メニューへ戻る</button>
+</section>
+
+<script>
+/* ----- 初期定数 / データ（localStorage） ----- */
+const MAIN_PASS="folknet";
+const LEADER_PASS="leader123";
+const VIEW_PASS="viewonly";
+const JOURNAL_PASS="journalpass";
+
+let users = JSON.parse(localStorage.getItem('users')) || [{id: "110113", name: "國中　涼佑"}];
+let todos = JSON.parse(localStorage.getItem('todos')) || [];
+let items = JSON.parse(localStorage.getItem('items')) || [];
+let futureLives = JSON.parse(localStorage.getItem('futureLives')) || [];
+let confirmedLives = JSON.parse(localStorage.getItem('confirmedLives')) || [];
+let bands = JSON.parse(localStorage.getItem('bands')) || [];
+let journal = JSON.parse(localStorage.getItem('journal')) || [];
+
+let currentUser = null;
+
+// ★ ライブ出演予定解除（修正版）
+function removeConfirmedLive() {
+  const select = document.getElementById('confirmedLiveSelect');
+  const selectedName = select.value;
+
+  if (!selectedName) {
+    alert("削除するライブを選択してください。");
+    return;
+  }
+
+  // 確認ダイアログ
+  if (!confirm(`「${selectedName}」を出演予定から削除しますか？`)) return;
+
+  // 配列から削除
+  confirmedLives = confirmedLives.filter(l => l.name !== selectedName);
+
+  // localStorage 更新
+  localStorage.setItem('confirmedLives', JSON.stringify(confirmedLives));
+
+  // 選択リストを更新
+  loadConfirmedLiveSelect();
+
+  alert(`「${selectedName}」を削除しました！`);
+}
+
+// ★ 出演予定ライブ一覧を読み込む（修正版）
+function loadConfirmedLiveSelect() {
+  const select = document.getElementById('confirmedLiveSelect');
+  select.innerHTML = '';
+
+  if (confirmedLives.length === 0) {
+    const opt = document.createElement('option');
+    opt.textContent = '（登録された出演予定はありません）';
+    opt.disabled = true;
+    select.appendChild(opt);
+    return;
+  }
+
+  confirmedLives.forEach(live => {
+    const opt = document.createElement('option');
+    opt.value = live.name;
+    opt.textContent = `${live.name} (${live.date || '日付未設定'})`;
+    select.appendChild(opt);
+  });
+}
+
+// 初期化時に呼び出す
+loadConfirmedLiveSelect();
+
+
+/* ----- ログイン / ユーザー選択 ----- */
+function checkLogin(){
+  const pass = document.getElementById('password').value;
+  if(pass===MAIN_PASS || pass===LEADER_PASS || pass===VIEW_PASS || pass===JOURNAL_PASS){
+    document.getElementById('login').classList.remove('active');
+    document.getElementById('userAccess').classList.add('active');
+  } else {
+    document.getElementById('loginMessage').innerText='パスワードが違います';
+  }
+}
+function checkMemberId(){
+  const id = document.getElementById('accessId').value.trim();
+  const user = users.find(u => u.id === id);
+  const nameDisplay = document.getElementById('accessName');
+  if(user){
+    nameDisplay.innerText = user.name;
+    currentUser = user;
+    loadMenu();
+  } else {
+    nameDisplay.innerText = '';
+  }
+}
+
+/* ----- メニュー表示（元のメニューを保持 + 物品編集） ----- */
+function loadMenu(){
+  const menuTable = document.getElementById('menuTable');
+  menuTable.innerHTML = '';
+  const menuItems = [
+    {name:'ホーム', func:()=>showSection('home')},
+    {name:'物品管理', func:()=>showSection('items')},
+    {name:'物品情報変更', func:()=>showSection('itemEdit')},
+    {name:'新ライブ登録', func:()=>showSection('futureLiveAdd')},
+    {name:'新ライブ登録解除', func:()=>showSection('futureLiveRemove')},
+    {name:'ライブ出演予定登録', func:()=>showSection('confirmedLiveAdd')},
+    {name:'ライブ出演予定解除', func:()=>showSection('confirmedLiveRemove')},
+    {name:'ライブバンド登録', func:()=>showSection('bandAdd')},
+    {name:'ライブバンド登録解除', func:()=>showSection('bandRemove')},
+    {name:'ライブ詳細ビュー', func:()=>showSection('liveDetails')},
+    {name:'部員番号登録', func:()=>showSection('userRegister')},
+    {name:'部員番号一覧', func:()=>showSection('userListView')},
+    {name:'電子ジャーナル', func:()=>showSection('journal')}
+  ];
+  menuItems.forEach(m=>{
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    const btn = document.createElement('button');
+    btn.innerText = m.name;
+    btn.onclick = m.func;
+    td.appendChild(btn);
+    tr.appendChild(td);
+    menuTable.appendChild(tr);
+  });
+  document.getElementById('userAccess').classList.remove('active');
+  document.getElementById('menuSection').classList.add('active');
+}
+
+/* ----- セクション切替と初期化 ----- */
+function showSection(id){
+  document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+  document.getElementById('menuSection').classList.add('active');
+  document.getElementById(id).classList.add('active');
+  if(id === 'itemEdit') loadItemSelect();
+  if(id === 'futureLiveRemove' || id==='futureLiveAdd' || id==='confirmedLiveAdd' || id==='confirmedLiveRemove' || id==='bandAdd' || id==='bandRemove' || id==='liveDetails') refreshLiveSelects();
+}
+function goMenu(){ showSection('menuSection'); }
+
+/* ----- 物品登録 / 表示 ----- */
+function addItem(){
+  const name = document.getElementById('itemName').value.trim();
+  const status = document.getElementById('itemStatus').value;
+  const note = document.getElementById('itemNote').value.trim();
+  if(!name){ alert('物品名を入力してください'); return; }
+  const newItem = { id: items.length? Math.max(...items.map(i=>i.id))+1 : 1, name, status, note, registeredBy: currentUser? currentUser.name : '不明' };
+  items.push(newItem);
+  localStorage.setItem('items', JSON.stringify(items));
+  updateItemTable();
+  alert('物品を登録しました');
+  // clear inputs
+  document.getElementById('itemName').value = '';
+  document.getElementById('itemNote').value = '';
+}
+function updateItemTable(){
+  const tbody = document.getElementById('itemTableBody');
+  tbody.innerHTML = '';
+  items.forEach(i=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i.id}</td><td>${i.name}</td><td>${i.status}</td><td>${i.note||''}</td><td>${i.registeredBy||''}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ----- 物品編集（読み込み・更新・削除） ----- */
+function loadItemSelect(){
+  const sel = document.getElementById('itemSelect');
+  sel.innerHTML = '';
+  items.forEach(i=>{
+    const opt = document.createElement('option');
+    opt.value = i.id;
+    opt.textContent = `${i.id}: ${i.name}`;
+    sel.appendChild(opt);
+  });
+  if(items.length>0) loadItemForEdit();
+  updateItemEditTable();
+}
+function loadItemForEdit(){
+  const id = parseInt(document.getElementById('itemSelect').value);
+  const item = items.find(x=>x.id===id);
+  if(!item) return;
+  document.getElementById('editItemName').value = item.name;
+  document.getElementById('editItemStatus').value = item.status;
+  document.getElementById('editItemNote').value = item.note || '';
+}
+function updateItem(){
+  const id = parseInt(document.getElementById('itemSelect').value);
+  const item = items.find(x=>x.id===id);
+  if(!item) return;
+  item.name = document.getElementById('editItemName').value.trim();
+  item.status = document.getElementById('editItemStatus').value;
+  item.note = document.getElementById('editItemNote').value.trim();
+  localStorage.setItem('items', JSON.stringify(items));
+  updateItemEditTable();
+  updateItemTable();
+  alert('物品情報を更新しました！');
+}
+function deleteItem(){
+  const id = parseInt(document.getElementById('itemSelect').value);
+  if(!confirm('本当にこの物品を削除しますか？')) return;
+  items = items.filter(x=>x.id!==id);
+  localStorage.setItem('items', JSON.stringify(items));
+  updateItemEditTable();
+  updateItemTable();
+  loadItemSelect();
+  alert('削除しました');
+}
+function updateItemEditTable(){
+  const tbody = document.getElementById('itemEditTableBody');
+  tbody.innerHTML = '';
+  items.forEach(i=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i.id}</td><td>${i.name}</td><td>${i.status}</td><td>${i.note||''}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ----- ライブ登録/管理 ----- */
+function addFutureLive(){
+  const name = document.getElementById('liveName').value.trim();
+  const date = document.getElementById('liveDate').value;
+  const place = document.getElementById('livePlace').value.trim();
+  const limit = parseInt(document.getElementById('liveSongsLimit').value) || null;
+  if(!name){ alert('ライブ名を入力してください'); return; }
+  futureLives.push({ name, date, place, limit });
+  localStorage.setItem('futureLives', JSON.stringify(futureLives));
+  refreshLiveSelects();
+  alert('ライブを登録しました');
+  document.getElementById('liveName').value=''; document.getElementById('livePlace').value='';
+}
+function removeFutureLive(){
+  const sel = document.getElementById('futureLiveSelect');
+  const name = sel.value;
+  if(!name) return;
+  if(!confirm(`「${name}」を削除しますか？`)) return;
+  futureLives = futureLives.filter(l=>l.name!==name);
+  // 併せてconfirmedLives and bandsの関連は残す／消す判断は任せる — ここではバンドのライブ参照を残します
+  localStorage.setItem('futureLives', JSON.stringify(futureLives));
+  refreshLiveSelects();
+  alert('削除しました');
+}
+function confirmLive(){
+  const sel = document.getElementById('futureLiveSelectForConfirm');
+  const name = sel.value;
+  if(!name) return;
+  if(!confirmedLives.find(l=>l.name===name)){
+    const live = futureLives.find(l=>l.name===name) || {name};
+    confirmedLives.push(live);
+    localStorage.setItem('confirmedLives', JSON.stringify(confirmedLives));
+    refreshLiveSelects();
+    alert('出演予定に登録しました');
+  } else {
+    alert('既に出演予定に登録されています');
+  }
+}
+function removeConfirmedLive(){
+  const sel = document.getElementById('confirmedLiveSelect');
+  const name = sel.value;
+  if(!name) return;
+  confirmedLives = confirmedLives.filter(l=>l.name!==name);
+  localStorage.setItem('confirmedLives', JSON.stringify(confirmedLives));
+  refreshLiveSelects();
+  alert('出演予定から削除しました');
+}
+
+/* ----- バンド（曲）登録 / 削除 ----- */
+function addBand(){
+  const live = document.getElementById('bandLiveSelect').value;
+  const song = document.getElementById('bandSong').value.trim();
+  const members = document.getElementById('bandMembers').value.trim();
+  const instruments = document.getElementById('bandInstruments').value.trim();
+  const duration = document.getElementById('bandDuration').value.trim();
+  const note = document.getElementById('bandNote').value.trim();
+  if(!live || !song){ alert('ライブと曲名を入力してください'); return; }
+  bands.push({ live, song, members, instruments, duration, note });
+  localStorage.setItem('bands', JSON.stringify(bands));
+  refreshBandSelects();
+  alert('バンド（曲）を登録しました');
+  // clear inputs
+  document.getElementById('bandSong').value=''; document.getElementById('bandMembers').value=''; document.getElementById('bandInstruments').value=''; document.getElementById('bandDuration').value=''; document.getElementById('bandNote').value='';
+}
+function removeBand(){
+  const sel = document.getElementById('bandSelect');
+  const idx = parseInt(sel.value);
+  if(isNaN(idx)) return;
+  // bandSelect options store index mapping; remove that band
+  bands.splice(idx,1);
+  localStorage.setItem('bands', JSON.stringify(bands));
+  refreshBandSelects();
+  alert('削除しました');
+}
+function refreshBandSelects(){
+  const bandSel = document.getElementById('bandSelect');
+  bandSel.innerHTML = '';
+  bands.forEach((b, index) => {
+    const opt = document.createElement('option');
+    opt.value = index;
+    opt.textContent = `${b.live} - ${b.song} (${b.members||''})`;
+    bandSel.appendChild(opt);
+  });
+}
+
+/* ----- ライブ系セレクトを更新 ----- */
+function refreshLiveSelects(){
+  // futureLiveSelect, futureLiveSelectForConfirm, confirmedLiveSelect, bandLiveSelect, liveDetailSelect
+  const fsel = document.getElementById('futureLiveSelect');
+  const fsel2 = document.getElementById('futureLiveSelectForConfirm');
+  const csel = document.getElementById('confirmedLiveSelect');
+  const blsel = document.getElementById('bandLiveSelect');
+  const ldsel = document.getElementById('liveDetailSelect');
+
+  [fsel, fsel2, blsel, ldsel].forEach(s=>{ if(s) s.innerHTML = ''; });
+
+  futureLives.forEach(l=>{
+    const o1 = document.createElement('option'); o1.value = l.name; o1.textContent = `${l.name} (${l.date||''})`; fsel && fsel.appendChild(o1);
+    const o2 = document.createElement('option'); o2.value = l.name; o2.textContent = `${l.name} (${l.date||''})`; fsel2 && fsel2.appendChild(o2);
+    const o3 = document.createElement('option'); o3.value = l.name; o3.textContent = `${l.name} (${l.date||''})`; blsel && blsel.appendChild(o3);
+    const o4 = document.createElement('option'); o4.value = l.name; o4.textContent = `${l.name} (${l.date||''})`; ldsel && ldsel.appendChild(o4);
+  });
+
+  confirmedLives.forEach(l=>{
+    const oc = document.createElement('option'); oc.value = l.name; oc.textContent = `${l.name} (${l.date||''})`; csel && csel.appendChild(oc);
+    // also add confirmed to band/live detail lists
+    const o3 = document.createElement('option'); o3.value = l.name; o3.textContent = `${l.name} (${l.date||''})`; blsel && blsel.appendChild(o3);
+    const o4 = document.createElement('option'); o4.value = l.name; o4.textContent = `${l.name} (${l.date||''})`; ldsel && ldsel.appendChild(o4);
+  });
+
+  // If none, add placeholder
+  [fsel, fsel2, csel, blsel, ldsel].forEach(s=>{
+    if(!s) return;
+    if(s.options.length===0){
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = '(登録なし)';
+      s.appendChild(opt);
+    }
+  });
+
+  refreshBandSelects();
+}
+
+/* ----- ライブ詳細表示 ----- */
+function showLiveDetails(){
+  const liveName = document.getElementById('liveDetailSelect').value;
+  const tbody = document.getElementById('liveDetailTableBody');
+  tbody.innerHTML = '';
+  const liveBands = bands.filter(b=>b.live === liveName);
+  if(liveBands.length===0){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="5">登録された曲がありません。</td>`;
+    tbody.appendChild(tr);
+  } else {
+    liveBands.forEach(b=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${b.song}</td><td>${b.members}</td><td>${b.instruments}</td><td>${b.duration}</td><td>${b.note}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+}
+
+/* ----- 部員管理 ----- */
+function registerUser(){
+  const name = document.getElementById('userName').value.trim();
+  if(!name){ alert('名前を入力してください'); return; }
+  const id = prompt('部員番号を入力');
+  if(!id){ alert('番号を入力してください'); return; }
+  users.push({ id, name });
+  localStorage.setItem('users', JSON.stringify(users));
+  updateUserList();
+  alert('登録しました');
+  document.getElementById('userName').value='';
+}
+function updateUserList(){
+  const tbody = document.getElementById('userTableBody');
+  tbody.innerHTML = '';
+  users.forEach(u=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${u.name}</td><td>${u.id}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ----- TODO とジャーナル（表示のみの簡易実装） ----- */
+function updateTodo(){
+  const div = document.getElementById('todo');
+  div.innerHTML = '';
+  todos.forEach((t,i)=>{
+    const p = document.createElement('p');
+    p.innerHTML = `${i+1}. ${t.text} ${t.urgent?'<span class="todo-warning">※要対応</span>':''}`;
+    div.appendChild(p);
+  });
+}
+function updateJournalTable(){
+  const tbody = document.getElementById('journalTableBody');
+  tbody.innerHTML = '';
+  journal.forEach(j=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${j.datetime||''}</td><td>${j.id||''}</td><td>${j.name||''}</td><td>${j.action||''}</td><td>${j.target||''}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ----- 初期描画 ----- */
+function initAll(){
+  updateItemTable();
+  updateItemEditTable();
+  updateUserList();
+  updateTodo();
+  updateJournalTable();
+  refreshLiveSelects();
+}
+initAll();
+
+</script>
+
+</body>
+</html>
